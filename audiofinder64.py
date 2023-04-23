@@ -62,7 +62,7 @@ def find_ctl(showPotential=False):
         if value >= 0x42310000 and value <= 0x423100FF:
             potential.append(i)
             if showPotential:
-                print("Potential ctl: " + hex(i))
+                print("Potential ctl: " + hex(i).upper())
 
     for clt in potential:
         if clt + 2 >= len(rom): continue
@@ -84,7 +84,7 @@ def find_ctl(showPotential=False):
         if found: likely.append(clt)
 
     for ctl in likely:
-        print("Found ctl: " + hex(ctl))
+        print("Found ctl: 0x" + hex(ctl).upper()[2:])
     return likely
 
 
@@ -113,7 +113,7 @@ def find_tbl(ctl):
                     break
             if not found: break
         if found:
-            print("Found tbl: " + hex(base))
+            print("Found tbl: 0x" + hex(base).upper()[2:])
             return base
         
 def save_bin(name, start, stop):
@@ -123,13 +123,25 @@ def save_bin(name, start, stop):
         for i in range(start, stop):
             out.write(rom[i].to_bytes(1, 'little'))
 
+def swap_bin(name, start, stop):
+    if (not options.extract):
+        return
+
+    remainder = (stop - start) % 4;
+    stop += 4 - remainder;
+    assert(stop < len(rom))
+
+    with open(name, "wb") as out:
+        for i in range(start, stop, 4):
+            value = (rom[i] << 24) + (rom[i + 1] << 16) + (rom[i + 2] << 8) + rom[i + 3]
+            out.write((value & 0xffffffff).to_bytes(4, 'little'))
 
 def get_ctl_range(addr):
     finalBankOffset = get_short(addr + 2) * 4 + addr
     finalBankAddress = get_long(finalBankOffset) + addr
     finalByte = get_short(finalBankAddress) * 4 + 0xC + finalBankAddress
     finalByte = math.ceil(finalByte/8) * 8
-    print("ctl range: " + hex(addr) + " - " + hex(finalByte))
+    print("ctl range: 0x" + hex(addr).upper()[2:] + " - 0x" + hex(finalByte).upper()[2:])
     save_bin("ctl" +str(addr), addr, finalByte)
 
 def sign_extend(value, bits):
@@ -172,8 +184,8 @@ def get_tbl_range(ctl, tbl, showRanges=False):
             valid = r[0] >= prev
             print(hex(r[0] + tbl) + "-" + hex(r[1] + tbl) + " :" + "(range: + "+ hex(r[1] - r[0]) + "), " + "(wave: " + hex(r[2]) + ") " + ":" + str(valid))
             prev = r[0]
-    print("tlb range: " + hex(tbl) + " - " + hex(waveRanges[-1][1] + tbl))
-    save_bin("tbl" + str(tbl), tbl, waveRanges[-1][1] + tbl)
+    print("tlb range: 0x" + hex(tbl).upper()[2:] + " - 0x" + hex(waveRanges[-1][1] + tbl).upper()[2:])
+    swap_bin("tbl" + str(tbl), tbl, waveRanges[-1][1] + tbl)
 
 def inner_product(len, v1, v2):
     total = 0
@@ -234,12 +246,6 @@ def find_bin():
             print(hex(i))
             print(hex(i + len(bin)))
 
-def swap_bin(name):
-    with open(name, "wb") as out:
-        for i in range(0, len(bin), 4):
-            value = (bin[i] << 24) + (bin[i + 1] << 16) + (bin[i + 2] << 8) + bin[i + 3]
-            out.write((value & 0xffffffff).to_bytes(4, 'little'))
-
 def decode_waves(ctls, tbls):
     assert(len(ctls) == len(tbls))
 
@@ -279,7 +285,7 @@ def find_seq():
                     found = False
                     break
         
-        if found and tracks: print("Found sequences: " + hex(addr))
+        if found and tracks: print("Found sequence: 0x" + hex(addr).upper()[2:])
 
 # TODO: Add suppoort for other libraries
 def find_all(romdir):
