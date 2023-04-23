@@ -172,8 +172,7 @@ def get_tbl_range(ctl, tbl, showRanges=False):
             valid = r[0] >= prev
             print(hex(r[0] + tbl) + "-" + hex(r[1] + tbl) + " :" + "(range: + "+ hex(r[1] - r[0]) + "), " + "(wave: " + hex(r[2]) + ") " + ":" + str(valid))
             prev = r[0]
-    # print(waveRanges)
-    print("tlb:  " + hex(tbl) + " - " + hex(waveRanges[-1][1] + tbl))
+    print("tlb range: " + hex(tbl) + " - " + hex(waveRanges[-1][1] + tbl))
     save_bin("tbl" + str(tbl), tbl, waveRanges[-1][1] + tbl)
 
 def inner_product(len, v1, v2):
@@ -255,10 +254,38 @@ def decode_waves(ctls, tbls):
             book = get_predictor_book(ctls[i], wave[2])
             vadpcm_dec(tbls[i] + wave[0], length, book)
 
+def find_seq():
+    for addr in range(0, len(rom) - 68, 4):
+        curLoc = [0] * 16
+        division = get_long(addr + 64)
+        
+        found = False
+        # 480 divison only searching for now
+        if division == 480:
+            for i in range(0, 64, 4):
+                curLoc[i >> 2] = get_long(addr + i)
+            
+            cur = -1
+            found = True
+            tracks = False
+            for loc in curLoc:
+                if loc == 0: continue
+                tracks = True
+                if loc + addr >= len(rom): 
+                    found = False
+                    break
+                if loc > cur: cur = loc
+                else:
+                    found = False
+                    break
+        
+        if found and tracks: print("Found sequences: " + hex(addr))
+
 # TODO: Add suppoort for other libraries
 def find_all(romdir):
     global rom
     rom = read_rom(romdir)
+    find_seq()
     ctls = find_ctl()
     tbls = [find_tbl(ctl) for ctl in ctls]
     for i in range(len(ctls)):
